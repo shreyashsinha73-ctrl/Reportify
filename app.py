@@ -20,17 +20,17 @@ def call_gemini_agent(description: str):
     """
 
     # We send the Pydantic schema over to Google AI Studio to handle formatting automatically
+   # Change 'gemini-2.5-flash' to 'gemini-2.5-flash' (or 'gemini-2.0-flash' if tracking the standard v2 tier)
     response = client.models.generate_content(
-        model='gemini-2.5-flash',
+        model='gemini-2.5-flash', 
         contents=f"Analyze this raw submission: {description}",
         config=types.GenerateContentConfig(
             system_instruction=system_prompt,
             response_mime_type="application/json",
-            response_schema=CivicTicketSchema, # Enforces structural typing via AI Studio
+            response_schema=CivicTicketSchema, 
             temperature=0.1
         )
     )
-    
     import json
     return json.loads(response.text)
 
@@ -41,12 +41,12 @@ def serve_index():
 @app.route('/api/report', methods=['POST'])
 def process_report():
     payload = request.json
-    desc = payload.get('description')
+    desc = payload.get('description', '')
     lat = payload.get('latitude')
     lng = payload.get('longitude')
     
     try:
-        # AI Studio guarantees this returns clean, un-wrapped valid JSON dictionary fields
+        # Attempt to get response from Gemini API
         ai_metrics = call_gemini_agent(desc)
         
         ticket = {
@@ -57,8 +57,37 @@ def process_report():
             "latitude": lat,
             "longitude": lng
         }
-        
         print("Structured Agent Output Success:", ticket)
+        return jsonify({"success": True, "ticket": ticket}), 201
+        
+    except Exception as error_context:
+        print("Pipeline failure (using fallback mock data):", error_context)
+        
+        # SMART FALLBACK: If Gemini fails/rate-limits, auto-generate a valid layout so the UI never breaks!
+        lower_desc = desc.lower()
+        category = "Infrastructure"
+        priority = "Medium"
+        
+        if "waste" in lower_desc or "garbage" in lower_desc or "toilet" in lower_desc or "clean" in lower_desc:
+            category = "Sanitation"
+        elif "light" in lower_desc or "power" in lower_desc or "water" in lower_desc:
+            category = "Utilities"
+        elif "danger" in lower_desc or "attack" in lower_desc or "police" in lower_desc:
+            category = "Public Safety"
+            priority = "High"
+
+        words = desc.split()
+        clean_title = " ".join(words[:5]) + "..." if len(words) > 5 else desc
+        
+        ticket = {
+            "title": f"[Agent Fallback] {clean_title}",
+            "description": desc,
+            "category": category,
+            "priority": priority,
+            "latitude": lat,
+            "longitude": lng
+        }
+        
         return jsonify({"success": True, "ticket": ticket}), 201
         
     except Exception as error_context:
