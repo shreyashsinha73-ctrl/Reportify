@@ -3,73 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reportify - Hyperlocal Civic Agent</title>
+    <title>Reportify Pro - Civic Command Center</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; display: flex; height: 100vh; background: #f4f6f8; }
-        #sidebar { width: 350px; padding: 20px; background: white; box-shadow: 2px 0 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 15px; overflow-y: auto; }
-        #map { flex-grow: 1; height: 100%; }
-        h2 { margin-top: 0; color: #1a73e8; }
-        input, textarea, button { width: 100%; padding: 10px; border: 1px solid #dadce0; border-radius: 4px; box-sizing: border-box; }
-        textarea { resize: vertical; height: 100px; }
-        button { background: #1a73e8; color: white; font-weight: bold; border: none; cursor: pointer; transition: background 0.2s; }
-        button:hover { background: #1557b0; }
-        .coordinates { font-size: 0.85em; color: #5f6368; background: #e8eaed; padding: 8px; border-radius: 4px; text-align: center; }
+        :root {
+            --bg-dark: #0b0f19;
+            --panel-dark: #131c2e;
+            --accent-blue: #38bdf8;
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
+            --border-glow: rgba(255, 255, 255, 0.05);
+        }
+        
+        body { 
+            font-family: 'Inter', -apple-system, sans-serif; 
+            margin: 0; display: flex; height: 100vh; background: var(--bg-dark); color: var(--text-main);
+            overflow: hidden;
+        }
+        
+        #sidebar { 
+            width: 380px; padding: 28px; background: var(--panel-dark); 
+            box-shadow: 10px 0 40px rgba(0, 0, 0, 0.6); 
+            display: flex; flex-direction: column; gap: 22px; 
+            overflow-y: auto; z-index: 10;
+            border-right: 1px solid var(--border-glow);
+        }
+        
+        #map { flex-grow: 1; height: 100%; background: #05070c; }
+        
+        /* Map container focus override to allow standard keyboard page actions */
+        .leaflet-container:focus { outline: none !important; }
+
+        h1 { 
+            margin: 0; font-size: 26px; font-weight: 800; color: var(--accent-blue); 
+            letter-spacing: -0.05em; 
+        }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        
+        .stat-card { 
+            background: rgba(255,255,255,0.02); 
+            border: 1px solid var(--border-glow); 
+            padding: 14px 8px; border-radius: 12px; text-align: center;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+        }
+        
+        .stat-val { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -0.03em; }
+        .stat-lbl { font-size: 10px; color: var(--text-muted); text-transform: uppercase; margin-top: 5px; font-weight: 700; letter-spacing: 0.05em; }
+        
+        textarea { 
+            width: 100%; padding: 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-glow); 
+            border-radius: 8px; color: #fff; box-sizing: border-box; resize: none; height: 100px; 
+            font-size: 13px; font-family: inherit; font-weight: 500; line-height: 1.5; transition: border-color 0.2s;
+        }
+        textarea:focus { border-color: var(--accent-blue); outline: none; }
+        
+        button { 
+            background: var(--accent-blue); color: #05070c; font-weight: 700; border: none; 
+            padding: 14px; border-radius: 8px; cursor: pointer; font-size: 13px; font-family: inherit; 
+            transition: all 0.2s ease; letter-spacing: -0.01em;
+            box-shadow: 0 4px 14px rgba(56, 189, 248, 0.2);
+        }
+        button:hover { background: #7dd3fc; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(56, 189, 248, 0.3); }
+        button:active { transform: translateY(0); }
+        
+        .coordinates { 
+            font-size: 11px; color: var(--accent-blue); background: rgba(56, 189, 248, 0.06); 
+            padding: 12px; border-radius: 8px; text-align: center; 
+            font-family: 'JetBrains Mono', monospace; font-weight: 500;
+            border: 1px dashed rgba(56, 189, 248, 0.25); 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+        }
+        
+        /* Feed Section Styling Polish */
+        .feed-container { border: 1px solid var(--border-glow); border-radius: 12px; background: rgba(0,0,0,0.2); overflow: hidden; }
+        .feed-header { background: rgba(255,255,255,0.01); padding: 12px 16px; font-size: 10px; font-weight: 700; color: var(--text-muted); border-bottom: 1px solid var(--border-glow); display: flex; justify-content: space-between; letter-spacing: 0.05em; }
+        .feed-list { max-height: 180px; overflow-y: auto; }
+        .feed-item { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.03); display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 500; cursor: pointer; }
+        .feed-item:hover { background: rgba(255,255,255,0.02); }
+        .feed-item:last-child { border-bottom: none; }
+        
+        /* Status Bar Styling Polish */
+        .status-bar { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 16px; font-weight: 500; }
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; }
+        .status-dot.active { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+
+        /* Badges Styling Polish */
+        .badge { display: inline-block; padding: 3px 8px; font-size: 9px; font-weight: 700; border-radius: 4px; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.03em; }
+        .badge-high { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .badge-medium { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+        .badge-low { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+        
+        /* Popups Styling Polish */
+        .leaflet-popup-content-wrapper { background: var(--panel-dark) !important; color: #fff !important; border: 1px solid var(--border-glow); font-family: 'Inter', sans-serif !important; border-radius: 12px !important; box-shadow: 0 10px 30px rgba(0,0,0,0.5) !important; }
+        .leaflet-popup-tip { background: var(--panel-dark) !important; border: 1px solid var(--border-glow); }
     </style>
 </head>
 <body>
 
     <div id="sidebar">
-        <h2>Reportify</h2>
-        <p style="font-size: 0.9em; color: #5f6368;">Click anywhere on the map to pinpoint an infrastructure or sanitation issue, then describe it below.</p>
+        <div>
+            <h1>Reportify Pro</h1>
+            <p style="font-size: 12px; color: var(--text-muted); margin: 6px 0 0 0; font-weight: 500;">Autonomous AI Civic Dispatcher Dashboard</p>
+        </div>
         
-        <div class="coordinates" id="coord-display">No location selected</div>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="stat-val" id="count-total">0</div><div class="stat-lbl">Total</div></div>
+            <div class="stat-card"><div class="stat-val" id="count-high" style="color: #ef4444;">0</div><div class="stat-lbl">High</div></div>
+            <div class="stat-card"><div class="stat-val" id="count-infra" style="color: var(--accent-blue);">0</div><div class="stat-lbl">Infra</div></div>
+        </div>
+
+        <div class="coordinates" id="coord-display">📍 Click map to select location</div>
         
         <input type="hidden" id="lat">
         <input type="hidden" id="lng">
         
-        <textarea id="description" placeholder="Describe the issue (e.g., 'Large pothole near the main market square blocking the left lane, dangerous for bikers.')"></textarea>
-        <button onclick="submitReport()">File Smart Report</button>
+        <textarea id="description" placeholder="Describe the civic breakdown here..."></textarea>
+        <button id="submit-btn" onclick="submitReport()">Analyze & Deploy Agent</button>
+
+        <div class="feed-container">
+            <div class="feed-header"><span>LIVE INCIDENT STREAM</span><span id="feed-count">0 ACTIVE</span></div>
+            <div class="feed-list" id="feed-target">
+                <div style="padding:16px; text-align:center; font-size:12px; color:var(--text-muted); font-weight: 500;">No logs streamed yet.</div>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-dot" id="agent-dot"></div>
+            <div>ENGINE // <span id="agent-status" style="color:#10b981; font-weight:700;">IDLE</span></div>
+        </div>
     </div>
 
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Initialize the map centered near a default city coordinate (e.g., Bangalore center)
-        const map = L.map('map').setView([12.9716, 77.5946], 13);
+        // FIX: Re-enable native keyboard panning and set up automatic focus management
+        const map = L.map('map', { 
+            zoomControl: false,
+            keyboard: true,
+            keyboardPanDelta: 80 // Makes arrow key panning smoother and faster
+        }).setView([12.9716, 77.5946], 12);
         
-        // Load OpenStreetMap tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
+        L.control.zoom({ position: 'topright' }).addTo(map);
+        
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap © CartoDB'
         }).addTo(map);
 
         let currentMarker = null;
+        let totalReports = 0, highCount = 0, infraCount = 0;
+        const recentReports = [];
 
-        // Capture map clicks to fetch exact latitude and longitude
-        map.on('click', function(e) {
+        function getSvgIcon(priority) {
+            const colors = { high: '#ef4444', medium: '#f59e0b', low: '#10b981' };
+            const color = colors[priority.toLowerCase()] || '#38bdf8';
+            return L.divIcon({
+                className: 'custom-pin',
+                html: `<svg width="24" height="34" viewBox="0 0 30 42"><path d="M15 0C6.71 0 0 6.71 0 15C0 26.25 15 42 15 42C15 42 30 26.25 30 15C30 6.71 23.29 0 15 0Z" fill="${color}"/></svg>`,
+                iconSize: [24, 34],
+                iconAnchor: [12, 34],
+                popupAnchor: [0, -30]
+            });
+        }
+
+        map.on('click', async function(e) {
             const lat = e.latlng.lat;
             const lng = e.latlng.lng;
-            
             document.getElementById('lat').value = lat;
             document.getElementById('lng').value = lng;
-            document.getElementById('coord-display').innerText = `Selected Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`;
+            document.getElementById('coord-display').innerText = `Resolving address mapping...`;
             
-            if (currentMarker) {
-                map.removeLayer(currentMarker);
-            }
+            if (currentMarker) map.removeLayer(currentMarker);
             currentMarker = L.marker([lat, lng]).addTo(map);
+
+            // FOCUS FIX: Immediately return focus to the textarea so keyboard actions work instantly
+            document.getElementById('description').focus();
+
+            try {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=16`);
+                const data = await res.json();
+                document.getElementById('coord-display').innerText = data.display_name || `LAT: ${lat.toFixed(4)} | LNG: ${lng.toFixed(4)}`;
+            } catch {
+                document.getElementById('coord-display').innerText = `LAT: ${lat.toFixed(4)} | LNG: ${lng.toFixed(4)}`;
+            }
         });
 
         async function submitReport() {
             const lat = document.getElementById('lat').value;
             const lng = document.getElementById('lng').value;
             const description = document.getElementById('description').value;
+            const btn = document.getElementById('submit-btn');
 
-            if (!lat || !lng || !description) {
-                alert("Please drop a pin on the map and write a brief description first.");
+            if (!lat || !description) {
+                alert("Please drop a location marker and enter a description.");
                 return;
             }
+
+            btn.disabled = true;
+            document.getElementById('agent-dot').classList.add('active');
+            
+            const stages = ["Classifying Context...", "Routing Department...", "Deploying Agent..."];
+            let stageIndex = 0;
+            btn.innerText = stages[stageIndex];
+            
+            const interval = setInterval(() => {
+                stageIndex++;
+                if(stageIndex < stages.length) btn.innerText = stages[stageIndex];
+            }, 700);
 
             try {
                 const response = await fetch('/api/report', {
@@ -78,24 +226,50 @@
                     body: JSON.stringify({ latitude: parseFloat(lat), longitude: parseFloat(lng), description: description })
                 });
                 
+                clearInterval(interval);
                 const result = await response.json();
+                
                 if (result.success) {
-                    alert(`Report analyzed by Civic Agent!\nCategory: ${result.ticket.category}\nPriority: ${result.ticket.priority}`);
+                    const ticket = result.ticket;
                     
-                    // Add the permanent AI-categorized ticket to the map interface
-                    L.marker([lat, lng])
+                    totalReports++;
+                    if(ticket.priority.toLowerCase() === 'high') highCount++;
+                    if(ticket.category.toLowerCase() === 'infrastructure') infraCount++;
+                    
+                    document.getElementById('count-total').innerText = totalReports;
+                    document.getElementById('count-high').innerText = highCount;
+                    document.getElementById('count-infra').innerText = infraCount;
+
+                    L.marker([lat, lng], { icon: getSvgIcon(ticket.priority) })
                         .addTo(map)
-                        .bindPopup(`<b>${result.ticket.title}</b><br>Priority: ${result.ticket.priority}<br>Category: ${result.ticket.category}`)
+                        .bindPopup(`
+                            <strong style="font-size:14px; color:var(--accent-blue); font-weight:700;">${ticket.title}</strong><br/>
+                            <span style="color:#cbd5e1; font-size:12px; display:block; margin-top:6px; line-height:1.4;">${ticket.description}</span>
+                            <span class="badge badge-${ticket.priority.toLowerCase()}">${ticket.priority}</span>
+                            <span class="badge" style="background:rgba(255,255,255,0.06); color:#fff; border:1px solid rgba(255,255,255,0.1);">${ticket.category}</span>
+                        `)
                         .openPopup();
                         
-                    // Reset input elements
+                    recentReports.unshift(ticket);
+                    const feedTarget = document.getElementById('feed-target');
+                    feedTarget.innerHTML = recentReports.slice(0, 5).map(r => `
+                        <div class="feed-item">
+                            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px;">${r.title}</span>
+                            <span style="font-size:10px; font-weight:700; text-transform:uppercase; color:${r.priority.toLowerCase() === 'high' ? '#ef4444' : r.priority.toLowerCase() === 'medium' ? '#f59e0b' : '#10b981'}">${r.priority}</span>
+                        </div>
+                    `).join('');
+                    
+                    document.getElementById('feed-count').innerText = `${recentReports.length} ACTIVE`;
                     document.getElementById('description').value = '';
-                } else {
-                    alert("Submission failed: " + result.error);
+                    if (currentMarker) map.removeLayer(currentMarker);
                 }
             } catch (err) {
-                console.error(err);
-                alert("Error sending report to backend.");
+                alert("Failed to connect to triage backend.");
+            } finally {
+                clearInterval(interval);
+                btn.disabled = false;
+                btn.innerText = "Analyze & Deploy Agent";
+                document.getElementById('agent-dot').classList.remove('active');
             }
         }
     </script>
