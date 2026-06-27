@@ -1,2 +1,13 @@
 runtime: python311
 entrypoint: gunicorn -b :$PORT app:app
+
+env_variables:
+  GEMINI_API_KEY: "AQ.Ab8RN6IPrpSdwXbet6tht62mDFbaEAeiVB_sGXyVQB6g2eb-Jg"
+
+handlers:
+- url: /
+  static_files: index.html
+  upload: index.html
+
+- url: /.*
+  script: auto
